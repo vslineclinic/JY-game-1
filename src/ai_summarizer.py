@@ -162,14 +162,10 @@ def _gemini_config(use_schema: bool = True) -> dict[str, Any]:
     config: dict[str, Any] = {
         "temperature": 0.35,
         "max_output_tokens": 4096,
-        "response_format": {
-            "text": {
-                "mime_type": "application/json",
-            }
-        },
+        "response_mime_type": "application/json",
     }
     if use_schema:
-        config["response_format"]["text"]["schema"] = strategy_note_json_schema()
+        config["response_json_schema"] = strategy_note_json_schema()
     return config
 
 
