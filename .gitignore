@@ -1,0 +1,19 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+
+# Streamlit secrets (절대 커밋 금지)
+.streamlit/secrets.toml
+
+# 로컬 저장 데이터 / 캐시
+data/*.json
+!data/.gitkeep
+
+# OS / 편집기
+.DS_Store
+.idea/
+.vscode/
