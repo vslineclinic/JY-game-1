@@ -8,7 +8,9 @@ DATA_DIR = Path(__file__).resolve().parent.parent / "data"
 NOTES_FILE = DATA_DIR / "strategy_notes.json"
 YOUTUBE_CACHE_FILE = DATA_DIR / "youtube_cache.json"
 AI_CACHE_FILE = DATA_DIR / "ai_cache.json"
-DEFAULT_OPENAI_MODEL = "gpt-4o-mini"
+
+# Gemini 2.5 Flash 기준 기본 모델
+DEFAULT_GEMINI_MODEL = "gemini-2.5-flash"
 
 
 def _get_from_streamlit_secrets(key: str) -> str | None:
@@ -32,12 +34,12 @@ def get_secret(key: str, default: str | None = None) -> str | None:
     return _get_from_streamlit_secrets(key) or os.getenv(key) or default
 
 
-def get_openai_api_key() -> str | None:
-    return get_secret("OPENAI_API_KEY")
+def get_gemini_api_key() -> str | None:
+    return get_secret("GEMINI_API_KEY")
 
 
-def get_openai_model() -> str:
-    return get_secret("OPENAI_MODEL", DEFAULT_OPENAI_MODEL) or DEFAULT_OPENAI_MODEL
+def get_gemini_model() -> str:
+    return get_secret("GEMINI_MODEL", DEFAULT_GEMINI_MODEL) or DEFAULT_GEMINI_MODEL
 
 
 def get_youtube_api_key() -> str | None:

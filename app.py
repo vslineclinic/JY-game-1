@@ -146,7 +146,7 @@ def render_create_page() -> None:
                 st.session_state.current_user_input = user_input
             except Exception as exc:
                 st.error(str(exc))
-                st.info("OPENAI_API_KEY를 .streamlit/secrets.toml에 넣었는지 확인해주세요. 키 없이도 화면 구성과 저장 목록은 볼 수 있습니다.")
+                st.info("GEMINI_API_KEY를 .streamlit/secrets.toml에 넣었는지 확인해주세요. 키 없이도 화면 구성과 저장 목록은 볼 수 있습니다.")
                 return
 
     current_note = st.session_state.get("current_note")
@@ -220,12 +220,13 @@ def render_settings_page() -> None:
         `.streamlit/secrets.toml.example` 파일을 복사해서 `.streamlit/secrets.toml`로 만든 뒤 아래처럼 입력합니다.
 
         ```toml
-        OPENAI_API_KEY = "sk-..."
-        OPENAI_MODEL = "gpt-4o-mini"
+        GEMINI_API_KEY = "AIza..."
+        GEMINI_MODEL = "gemini-2.5-flash"
         YOUTUBE_API_KEY = "AIza..."
         ```
 
-        - `OPENAI_API_KEY`: 공략노트 생성에 필요합니다.
+        - `GEMINI_API_KEY`: 공략노트 생성에 필요합니다.
+        - `GEMINI_MODEL`: 기본값은 `gemini-2.5-flash`입니다.
         - `YOUTUBE_API_KEY`: YouTube 검색 기능에만 필요합니다.
         - YouTube 검색을 쓰지 않고 메모만 넣는 MVP는 `YOUTUBE_API_KEY` 없이도 가능합니다.
 

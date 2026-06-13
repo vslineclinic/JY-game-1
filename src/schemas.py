@@ -189,7 +189,7 @@ class StrategyNote:
 
 
 def strategy_note_json_schema() -> dict[str, Any]:
-    """JSON Schema used for OpenAI Structured Outputs."""
+    """JSON Schema used for Gemini Structured Outputs."""
     return {
         "type": "object",
         "additionalProperties": False,

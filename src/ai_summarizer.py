@@ -3,9 +3,9 @@ from __future__ import annotations
 import json
 from typing import Any
 
-from openai import OpenAI
+from google import genai
 
-from src.config import get_openai_api_key, get_openai_model
+from src.config import get_gemini_api_key, get_gemini_model
 from src.schemas import StrategyNote, UserInput, VideoResult, strategy_note_json_schema
 
 MAX_MANUAL_NOTES_CHARS = 12000
@@ -132,10 +132,25 @@ def build_user_prompt(user_input: UserInput) -> str:
 7. 원본 영상 내용을 그대로 복사하지 말고, 짧고 이해하기 쉽게 재구성한다.
 8. 과금 유도, 도박성 뽑기, 과몰입을 부추기는 내용은 제외한다.
 9. 입력이 부족하면 확실하지 않은 내용을 단정하지 말고, '제공된 정보 기준'으로 정리한다.
+10. JSON 외의 설명문, 마크다운 코드블록, ``` 표시는 절대 쓰지 않는다.
 """.strip()
 
 
+def _strip_code_fence(content: str) -> str:
+    content = (content or "").strip()
+    if content.startswith("```"):
+        lines = content.splitlines()
+        # remove first fence line such as ```json and last fence line ```
+        if lines and lines[0].strip().startswith("```"):
+            lines = lines[1:]
+        if lines and lines[-1].strip() == "```":
+            lines = lines[:-1]
+        return "\n".join(lines).strip()
+    return content
+
+
 def _parse_strategy_note(content: str) -> StrategyNote:
+    content = _strip_code_fence(content)
     try:
         data = json.loads(content)
     except json.JSONDecodeError as exc:
@@ -143,48 +158,48 @@ def _parse_strategy_note(content: str) -> StrategyNote:
     return StrategyNote.from_dict(data)
 
 
-def generate_strategy_note(user_input: UserInput) -> StrategyNote:
-    api_key = get_openai_api_key()
-    if not api_key:
-        raise RuntimeError("OPENAI_API_KEY가 없습니다. .streamlit/secrets.toml 또는 환경변수에 설정하세요.")
-
-    client = OpenAI(api_key=api_key)
-    model = get_openai_model()
-    messages = [
-        {"role": "system", "content": SYSTEM_PROMPT},
-        {"role": "user", "content": build_user_prompt(user_input)},
-    ]
-
-    # First attempt: Structured Outputs with JSON Schema.
-    try:
-        response = client.chat.completions.create(
-            model=model,
-            messages=messages,
-            temperature=0.35,
-            response_format={
-                "type": "json_schema",
-                "json_schema": {
-                    "name": "strategy_note",
-                    "strict": True,
-                    "schema": strategy_note_json_schema(),
-                },
-            },
-        )
-        content = response.choices[0].message.content or "{}"
-        return _parse_strategy_note(content)
-    except Exception:
-        # Second attempt: JSON object mode for models/accounts that do not support strict schema.
-        retry_messages = messages + [
-            {
-                "role": "user",
-                "content": "반드시 유효한 JSON 객체 하나만 출력해줘. 마크다운 코드블록은 쓰지 마.",
+def _gemini_config(use_schema: bool = True) -> dict[str, Any]:
+    config: dict[str, Any] = {
+        "temperature": 0.35,
+        "max_output_tokens": 4096,
+        "response_format": {
+            "text": {
+                "mime_type": "application/json",
             }
-        ]
-        response = client.chat.completions.create(
-            model=model,
-            messages=retry_messages,
-            temperature=0.25,
-            response_format={"type": "json_object"},
+        },
+    }
+    if use_schema:
+        config["response_format"]["text"]["schema"] = strategy_note_json_schema()
+    return config
+
+
+def _generate_once(client: genai.Client, model: str, user_input: UserInput, use_schema: bool = True) -> StrategyNote:
+    prompt = f"{SYSTEM_PROMPT}\n\n{build_user_prompt(user_input)}"
+    response = client.models.generate_content(
+        model=model,
+        contents=prompt,
+        config=_gemini_config(use_schema=use_schema),
+    )
+    content = response.text or "{}"
+    return _parse_strategy_note(content)
+
+
+def generate_strategy_note(user_input: UserInput) -> StrategyNote:
+    api_key = get_gemini_api_key()
+    if not api_key:
+        raise RuntimeError("GEMINI_API_KEY가 없습니다. .streamlit/secrets.toml 또는 환경변수에 설정하세요.")
+
+    client = genai.Client(api_key=api_key)
+    model = get_gemini_model()
+
+    # First attempt: Gemini structured output with JSON Schema.
+    try:
+        return _generate_once(client, model, user_input, use_schema=True)
+    except Exception:
+        # Second attempt: JSON MIME type without schema, with an additional strict instruction.
+        retry_input = UserInput.from_dict(user_input.to_dict())
+        retry_input.manual_notes = (
+            user_input.manual_notes
+            + "\n\n[재시도 지시] 반드시 유효한 JSON 객체 하나만 출력해. 마크다운 코드블록은 쓰지 마."
         )
-        content = response.choices[0].message.content or "{}"
-        return _parse_strategy_note(content)
+        return _generate_once(client, model, retry_input, use_schema=False)
